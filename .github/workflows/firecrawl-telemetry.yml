@@ -1,0 +1,57 @@
+name: Firecrawl Telemetry and RF Mesh Ingestion
+
+on:
+  workflow_dispatch:   # manual trigger
+  schedule:
+    - cron: "0 2 * * *"   # run nightly at 2 AM UTC
+
+jobs:
+  firecrawl-telemetry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firecrawl CLI locally
+        run: npm install firecrawl-cli@latest
+
+      - name: Scrape telemetry and docs
+        env:
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          npx firecrawl scrape https://hearthealthcommunity.com/hhc/multi --output telemetry_scrape.json
+          npx firecrawl scrape https://cocalc.com/share/public_paths/3a841bd6c02ca62d1e0eea3b527d75c5c886c642 --output cocalc_scrape.json
+
+      - name: Extended Chained Searches (RF Mesh & AXIS-TCET)
+        env:
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          npx firecrawl search "RF mesh specifications" --output rf_mesh.json
+          npx firecrawl search "AXIS-TCET documentation" --output axis_tcet.json
+
+      - name: Post-process JSON with jq, sed, and awk
+        run: |
+          mkdir -p capsulecraft/runtime
+          
+          # Clean transient fields and structure telemetry
+          if [ -f telemetry_scrape.json ]; then
+            jq '. | del(.transient // empty)' telemetry_scrape.json > telemetry_clean.json || cp telemetry_scrape.json telemetry_clean.json
+          else
+            echo "{}" > telemetry_clean.json
+          fi
+          
+          sed -i 's/TEMP_ID/ID/g' telemetry_clean.json
+          awk '{print}' telemetry_clean.json > capsulecraft/runtime/telemetry.json
+
+      - name: Commit and push cleaned telemetry & search results
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add capsulecraft/runtime/telemetry.json rf_mesh.json axis_tcet.json
+          git commit -m "chore(ci): nightly Firecrawl telemetry post-processing + RF mesh + AXIS-TCET" || echo "No changes to commit"
+          git push origin main

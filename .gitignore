@@ -7,3 +7,6 @@
 .gitconfig
 *.tmp
 *.log
+telemetry_events.db
+__pycache__/
+.npm/

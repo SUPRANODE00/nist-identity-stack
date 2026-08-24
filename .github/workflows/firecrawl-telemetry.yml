@@ -1,4 +1,4 @@
-name: Firecrawl Telemetry and RF Mesh Ingestion
+name: Firecrawl Telemetry & RF Mesh Scraper
 
 on:
   workflow_dispatch:   # manual trigger
@@ -6,8 +6,15 @@ on:
     - cron: "0 2 * * *"   # run nightly at 2 AM UTC
 
 jobs:
-  firecrawl-telemetry:
+  firecrawl-ingestion:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        endpoint: 
+          - https://hearthealthcommunity.com/hhc/multi
+          - https://cocalc.com/share/public_paths/3a841bd6c02ca62d1e0eea3b527d75c5c886c642
+          - https://example.com/rf-mesh-specs
+          - https://example.com/axis-tcet-docs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,38 +27,40 @@ jobs:
       - name: Install Firecrawl CLI locally
         run: npm install firecrawl-cli@latest
 
-      - name: Scrape telemetry and docs
+      - name: Scrape matrix endpoint
         env:
           FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
         run: |
-          npx firecrawl scrape https://hearthealthcommunity.com/hhc/multi --output telemetry_scrape.json
-          npx firecrawl scrape https://cocalc.com/share/public_paths/3a841bd6c02ca62d1e0eea3b527d75c5c886c642 --output cocalc_scrape.json
+          fname=$(echo "${{ matrix.endpoint }}" | sed 's/[^a-zA-Z0-9]/_/g').json
+          npx firecrawl scrape "${{ matrix.endpoint }}" --output "$fname"
 
-      - name: Extended Chained Searches (RF Mesh & AXIS-TCET)
-        env:
-          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+      - name: Post-process scraped JSON
         run: |
-          npx firecrawl search "RF mesh specifications" --output rf_mesh.json
-          npx firecrawl search "AXIS-TCET documentation" --output axis_tcet.json
+          for f in *.json; do
+            [ -f "$f" ] || continue
+            # jq: remove transient fields if present
+            jq 'del(.metadata,.timestamp // empty)' "$f" > tmp.json && mv tmp.json "$f" || true
+            # sed: strip empty lines
+            sed -i '/^$/d' "$f"
+            # awk: retain structure and identifier lines
+            awk '{print}' "$f" > cleaned.json && mv cleaned.json "$f"
+          done
 
-      - name: Post-process JSON with jq, sed, and awk
+      - name: Feed results into capsulecraft runtime & trigger reload
         run: |
-          mkdir -p capsulecraft/runtime
+          mkdir -p capsulecraft/runtime/ingestion
+          cp *.json capsulecraft/runtime/ingestion/ 2>/dev/null || true
           
-          # Clean transient fields and structure telemetry
-          if [ -f telemetry_scrape.json ]; then
-            jq '. | del(.transient // empty)' telemetry_scrape.json > telemetry_clean.json || cp telemetry_scrape.json telemetry_clean.json
-          else
-            echo "{}" > telemetry_clean.json
+          # Trigger capsulecraft runtime state reload hook if executable exists
+          if [ -f "control.sh" ]; then
+            bash control.sh --reload-ingestion || echo "Runtime reload hook skipped."
           fi
-          
-          sed -i 's/TEMP_ID/ID/g' telemetry_clean.json
-          awk '{print}' telemetry_clean.json > capsulecraft/runtime/telemetry.json
+          echo "Capsulecraft runtime ingestion synchronized."
 
-      - name: Commit and push cleaned telemetry & search results
+      - name: Commit and push ingestion results
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add capsulecraft/runtime/telemetry.json rf_mesh.json axis_tcet.json
-          git commit -m "chore(ci): nightly Firecrawl telemetry post-processing + RF mesh + AXIS-TCET" || echo "No changes to commit"
+          git add *.json capsulecraft/runtime/ingestion/
+          git commit -m "chore(ci): parallelized nightly Firecrawl matrix scrape & capsulecraft sync" || echo "No changes to commit"
           git push origin main

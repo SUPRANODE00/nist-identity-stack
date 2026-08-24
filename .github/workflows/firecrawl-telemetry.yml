@@ -78,13 +78,16 @@ jobs:
           python-version: '3.10'
 
       - name: Install visualization dependencies
-        run: pip install matplotlib
+        run: pip install matplotlib requests
 
-      - name: Generate Diagnostic HUD Report and Graphical Plots
+      - name: Generate Diagnostic HUD Report, Charts & Threshold Checks
+        env:
+          WEBHOOK_URL: ${{ secrets.HUD_WEBHOOK_URL }}
         run: |
           python3 - << 'PY_SCRIPT'
           import os
           import json
+          import requests
           import matplotlib.pyplot as plt
           from datetime import datetime
 
@@ -92,6 +95,8 @@ jobs:
           files = []
           counts = []
           id_counts = []
+          failed_files = []
+          low_id_files = []
 
           print("====================================================")
           print("       CAPSCULECRAFT TELEMETRY DIAGNOSTIC HUD       ")
@@ -108,7 +113,6 @@ jobs:
                       try:
                           with open(fpath, 'r') as file:
                               data = json.load(file)
-                              # Calculate simple metrics
                               if isinstance(data, list):
                                   c = len(data)
                                   idc = sum(1 for item in data if isinstance(item, dict) and 'id' in item)
@@ -120,6 +124,11 @@ jobs:
                                   idc = 0
                           counts.append(c)
                           id_counts.append(idc)
+                          
+                          # Check threshold ratio (e.g., expect some structure, flag if zero records)
+                          if c == 0:
+                              failed_files.append(f)
+                              
                           print(f"File: {f}")
                           print(f"  - Records / Keys: {c}")
                           print(f"  - Identifier Count: {idc}")
@@ -127,17 +136,16 @@ jobs:
                       except Exception as e:
                           counts.append(0)
                           id_counts.append(0)
+                          failed_files.append(f)
                           print(f"File: {f} - Error parsing JSON: {e}")
 
           print("----------------------------------------------------")
-          print("HUD Status: SUCCESS [Graphical Charts Generated]")
-          print("====================================================")
-
+          
           # Generate Visualizations if data exists
           if files:
               os.makedirs("hud_artifacts", exist_ok=True)
               
-              # 1. Bar Chart: Record Volumes per File
+              # 1. Bar Chart: Record Volumes
               plt.figure(figsize=(10, 5))
               plt.bar(files, counts, color='#1f77b4')
               plt.xlabel('Ingested Telemetry Files')
@@ -148,7 +156,7 @@ jobs:
               plt.savefig('hud_artifacts/record_volumes.png')
               plt.close()
 
-              # 2. Identifier Preservation Comparison
+              # 2. Identifier Comparison
               plt.figure(figsize=(8, 5))
               x = range(len(files))
               width = 0.35
@@ -162,8 +170,34 @@ jobs:
               plt.tight_layout()
               plt.savefig('hud_artifacts/identifier_preservation.png')
               plt.close()
-              
-              print("Artifact charts successfully rendered to hud_artifacts/")
+
+          # Webhook Notification Alert Trigger
+          webhook_url = os.environ.get("WEBHOOK_URL")
+          alert_status = "SUCCESS"
+          message = "Nightly telemetry ingestion completed successfully with all nodes verified."
+          
+          if failed_files:
+              alert_status = "WARNING / FAILURE"
+              message = f"Ingestion issues detected in files: {', '.join(failed_files)}"
+
+          print(f"HUD Status: {alert_status}")
+          print("====================================================")
+
+          if webhook_url:
+              payload = {
+                  "text": f"[CAPSULECRAFT HUD] Status: {alert_status}\nDetails: {message}\nTimestamp: {datetime.utcnow().isoformat()}Z"
+              }
+              try:
+                  requests.post(webhook_url, json=payload, timeout=10)
+                  print("Webhook notification dispatched.")
+              except Exception as err:
+                  print(f"Failed to dispatch webhook: {err}")
+          else:
+              print("Webhook URL secret not configured; alert dispatch skipped.")
+
+          # Fail pipeline if critical files failed
+          if failed_files:
+              exit(1)
           PY_SCRIPT
 
       - name: Upload HUD Artifacts

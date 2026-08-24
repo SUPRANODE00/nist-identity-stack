@@ -10,3 +10,10 @@
 telemetry_events.db
 __pycache__/
 .npm/
+# Local artifacts
+telemetry_events.db
+telemetry_sync.json
+__pycache__/
+.npm/
+.import.swp
+.socket.swp

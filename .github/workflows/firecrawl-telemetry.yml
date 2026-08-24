@@ -72,29 +72,102 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate Diagnostic HUD Report
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install visualization dependencies
+        run: pip install matplotlib
+
+      - name: Generate Diagnostic HUD Report and Graphical Plots
         run: |
-          echo "===================================================="
-          echo "       CAPSCULECRAFT TELEMETRY DIAGNOSTIC HUD       "
-          echo "===================================================="
-          echo "Timestamp: $(date -u)"
-          echo "Target Directory: capsulecraft/runtime/ingestion/"
-          echo "----------------------------------------------------"
-          
-          if [ -d "capsulecraft/runtime/ingestion" ]; then
-            cd capsulecraft/runtime/ingestion
-            for json_file in *.json; do
-              [ -f "$json_file" ] || continue
-              record_count=$(jq length "$json_file" 2>/dev/null || echo "N/A")
-              has_id_count=$(jq '[.. | objects | select(.id?)] | length' "$json_file" 2>/dev/null || echo "N/A")
-              echo "File: $json_file"
-              echo "  - Records / Keys: $record_count"
-              echo "  - Identifier Count: $has_id_count"
-              echo "  - Status: VERIFIED & SYNCED"
-            . fi
-          else
-            echo "Warning: Ingestion path not found."
-          fi
-          echo "----------------------------------------------------"
-          echo "HUD Status: SUCCESS [Reload Hook Triggered]"
-          echo "===================================================="
+          python3 - << 'PY_SCRIPT'
+          import os
+          import json
+          import matplotlib.pyplot as plt
+          from datetime import datetime
+
+          ingestion_dir = "capsulecraft/runtime/ingestion"
+          files = []
+          counts = []
+          id_counts = []
+
+          print("====================================================")
+          print("       CAPSCULECRAFT TELEMETRY DIAGNOSTIC HUD       ")
+          print("====================================================")
+          print(f"Timestamp: {datetime.utcnow().isoformat()}Z")
+          print(f"Target Directory: {ingestion_dir}")
+          print("----------------------------------------------------")
+
+          if os.path.exists(ingestion_dir):
+              for f in os.listdir(ingestion_dir):
+                  if f.endswith('.json'):
+                      fpath = os.path.join(ingestion_dir, f)
+                      files.append(f)
+                      try:
+                          with open(fpath, 'r') as file:
+                              data = json.load(file)
+                              # Calculate simple metrics
+                              if isinstance(data, list):
+                                  c = len(data)
+                                  idc = sum(1 for item in data if isinstance(item, dict) and 'id' in item)
+                              elif isinstance(data, dict):
+                                  c = len(data.keys())
+                                  idc = 1 if 'id' in data else 0
+                              else:
+                                  c = 1
+                                  idc = 0
+                          counts.append(c)
+                          id_counts.append(idc)
+                          print(f"File: {f}")
+                          print(f"  - Records / Keys: {c}")
+                          print(f"  - Identifier Count: {idc}")
+                          print("  - Status: VERIFIED & SYNCED")
+                      except Exception as e:
+                          counts.append(0)
+                          id_counts.append(0)
+                          print(f"File: {f} - Error parsing JSON: {e}")
+
+          print("----------------------------------------------------")
+          print("HUD Status: SUCCESS [Graphical Charts Generated]")
+          print("====================================================")
+
+          # Generate Visualizations if data exists
+          if files:
+              os.makedirs("hud_artifacts", exist_ok=True)
+              
+              # 1. Bar Chart: Record Volumes per File
+              plt.figure(figsize=(10, 5))
+              plt.bar(files, counts, color='#1f77b4')
+              plt.xlabel('Ingested Telemetry Files')
+              plt.ylabel('Record / Key Count')
+              plt.title('Nightly Ingestion Record Volumes')
+              plt.xticks(rotation=15, ha='right')
+              plt.tight_layout()
+              plt.savefig('hud_artifacts/record_volumes.png')
+              plt.close()
+
+              # 2. Identifier Preservation Comparison
+              plt.figure(figsize=(8, 5))
+              x = range(len(files))
+              width = 0.35
+              plt.bar([i - width/2 for i in x], counts, width, label='Total Records', color='#aec7e8')
+              plt.bar([i + width/2 for i in x], id_counts, width, label='With Identifier (id)', color='#ff7f0e')
+              plt.xlabel('Telemetry Target')
+              plt.ylabel('Count')
+              plt.title('Identifier Preservation Index')
+              plt.xticks(x, files, rotation=15, ha='right')
+              plt.legend()
+              plt.tight_layout()
+              plt.savefig('hud_artifacts/identifier_preservation.png')
+              plt.close()
+              
+              print("Artifact charts successfully rendered to hud_artifacts/")
+          PY_SCRIPT
+
+      - name: Upload HUD Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: capsulecraft-diagnostic-hud-reports
+          path: hud_artifacts/

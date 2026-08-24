@@ -1,0 +1,9 @@
+{
+  "carrier_freq_ghz": 1.500,
+  "attenuation_dbm": -2.4,
+  "noise_floor_dbm": -112.0,
+  "spatial_radius_m": 500,
+  "origin_lat": 29.620000,
+  "origin_lon": -95.230000,
+  "failover_active": false
+}

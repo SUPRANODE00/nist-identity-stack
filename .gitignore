@@ -17,3 +17,17 @@ __pycache__/
 .npm/
 .import.swp
 .socket.swp
+telemetry_log.json
+telemetry_events.db
+.import.swp
+.socket.swp
+__pycache__/
+.npm/
+.git-credentials
+telemetry_log.json
+telemetry_events.db
+.import.swp
+.socket.swp
+__pycache__/
+.npm/
+.git-credentials

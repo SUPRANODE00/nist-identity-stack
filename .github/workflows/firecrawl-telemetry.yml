@@ -1,207 +1,28 @@
-name: Firecrawl Telemetry & RF Mesh Scraper
+name: Firecrawl Telemetry Sweep & Diagnostic HUD
 
 on:
-  workflow_dispatch:   # manual trigger
+  workflow_dispatch:
   schedule:
-    - cron: "0 2 * * *"   # run nightly at 2 AM UTC
+    - cron: '0 */6 * * *'
 
 jobs:
-  firecrawl-ingestion:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        endpoint: 
-          - https://hearthealthcommunity.com/hhc/multi
-          - https://cocalc.com/share/public_paths/3a841bd6c02ca62d1e0eea3b527d75c5c886c642
-          - https://example.com/rf-mesh-specs
-          - https://example.com/axis-tcet-docs
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Firecrawl CLI locally
-        run: npm install firecrawl-cli@latest
-
-      - name: Scrape matrix endpoint
-        env:
-          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-        run: |
-          fname=$(echo "${{ matrix.endpoint }}" | sed 's/[^a-zA-Z0-9]/_/g').json
-          npx firecrawl scrape "${{ matrix.endpoint }}" --output "$fname"
-
-      - name: Post-process scraped JSON
-        run: |
-          for f in *.json; do
-            [ -f "$f" ] || continue
-            # jq: remove transient fields if present
-            jq 'del(.metadata,.timestamp // empty)' "$f" > tmp.json && mv tmp.json "$f" || true
-            # sed: strip empty lines
-            sed -i '/^$/d' "$f"
-            # awk: retain structure and identifier lines
-            awk '{print}' "$f" > cleaned.json && mv cleaned.json "$f"
-          done
-
-      - name: Feed results into capsulecraft runtime & trigger reload
-        run: |
-          mkdir -p capsulecraft/runtime/ingestion
-          cp *.json capsulecraft/runtime/ingestion/ 2>/dev/null || true
-          
-          # Trigger capsulecraft runtime state reload hook if executable exists
-          if [ -f "control.sh" ]; then
-            bash control.sh --reload-ingestion || echo "Runtime reload hook skipped."
-          fi
-          echo "Capsulecraft runtime ingestion synchronized."
-
-      - name: Commit and push ingestion results
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add *.json capsulecraft/runtime/ingestion/
-          git commit -m "chore(ci): parallelized nightly Firecrawl matrix scrape & capsulecraft sync" || echo "No changes to commit"
-          git push origin main
-
-  diagnostic-hud:
-    needs: firecrawl-ingestion
+  telemetry-sweep:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install visualization dependencies
-        run: pip install matplotlib requests
-
-      - name: Generate Diagnostic HUD Report, Charts & Threshold Checks
-        env:
-          WEBHOOK_URL: ${{ secrets.HUD_WEBHOOK_URL }}
+      - name: Execute Telemetry and Negative-Space Verification
         run: |
-          python3 - << 'PY_SCRIPT'
-          import os
-          import json
-          import requests
-          import matplotlib.pyplot as plt
-          from datetime import datetime
-
-          ingestion_dir = "capsulecraft/runtime/ingestion"
-          files = []
-          counts = []
-          id_counts = []
-          failed_files = []
-          low_id_files = []
-
-          print("====================================================")
-          print("       CAPSCULECRAFT TELEMETRY DIAGNOSTIC HUD       ")
-          print("====================================================")
-          print(f"Timestamp: {datetime.utcnow().isoformat()}Z")
-          print(f"Target Directory: {ingestion_dir}")
-          print("----------------------------------------------------")
-
-          if os.path.exists(ingestion_dir):
-              for f in os.listdir(ingestion_dir):
-                  if f.endswith('.json'):
-                      fpath = os.path.join(ingestion_dir, f)
-                      files.append(f)
-                      try:
-                          with open(fpath, 'r') as file:
-                              data = json.load(file)
-                              if isinstance(data, list):
-                                  c = len(data)
-                                  idc = sum(1 for item in data if isinstance(item, dict) and 'id' in item)
-                              elif isinstance(data, dict):
-                                  c = len(data.keys())
-                                  idc = 1 if 'id' in data else 0
-                              else:
-                                  c = 1
-                                  idc = 0
-                          counts.append(c)
-                          id_counts.append(idc)
-                          
-                          # Check threshold ratio (e.g., expect some structure, flag if zero records)
-                          if c == 0:
-                              failed_files.append(f)
-                              
-                          print(f"File: {f}")
-                          print(f"  - Records / Keys: {c}")
-                          print(f"  - Identifier Count: {idc}")
-                          print("  - Status: VERIFIED & SYNCED")
-                      except Exception as e:
-                          counts.append(0)
-                          id_counts.append(0)
-                          failed_files.append(f)
-                          print(f"File: {f} - Error parsing JSON: {e}")
-
-          print("----------------------------------------------------")
-          
-          # Generate Visualizations if data exists
-          if files:
-              os.makedirs("hud_artifacts", exist_ok=True)
-              
-              # 1. Bar Chart: Record Volumes
-              plt.figure(figsize=(10, 5))
-              plt.bar(files, counts, color='#1f77b4')
-              plt.xlabel('Ingested Telemetry Files')
-              plt.ylabel('Record / Key Count')
-              plt.title('Nightly Ingestion Record Volumes')
-              plt.xticks(rotation=15, ha='right')
-              plt.tight_layout()
-              plt.savefig('hud_artifacts/record_volumes.png')
-              plt.close()
-
-              # 2. Identifier Comparison
-              plt.figure(figsize=(8, 5))
-              x = range(len(files))
-              width = 0.35
-              plt.bar([i - width/2 for i in x], counts, width, label='Total Records', color='#aec7e8')
-              plt.bar([i + width/2 for i in x], id_counts, width, label='With Identifier (id)', color='#ff7f0e')
-              plt.xlabel('Telemetry Target')
-              plt.ylabel('Count')
-              plt.title('Identifier Preservation Index')
-              plt.xticks(x, files, rotation=15, ha='right')
-              plt.legend()
-              plt.tight_layout()
-              plt.savefig('hud_artifacts/identifier_preservation.png')
-              plt.close()
-
-          # Webhook Notification Alert Trigger
-          webhook_url = os.environ.get("WEBHOOK_URL")
-          alert_status = "SUCCESS"
-          message = "Nightly telemetry ingestion completed successfully with all nodes verified."
-          
-          if failed_files:
-              alert_status = "WARNING / FAILURE"
-              message = f"Ingestion issues detected in files: {', '.join(failed_files)}"
-
-          print(f"HUD Status: {alert_status}")
-          print("====================================================")
-
-          if webhook_url:
-              payload = {
-                  "text": f"[CAPSULECRAFT HUD] Status: {alert_status}\nDetails: {message}\nTimestamp: {datetime.utcnow().isoformat()}Z"
-              }
-              try:
-                  requests.post(webhook_url, json=payload, timeout=10)
-                  print("Webhook notification dispatched.")
-              except Exception as err:
-                  print(f"Failed to dispatch webhook: {err}")
-          else:
-              print("Webhook URL secret not configured; alert dispatch skipped.")
-
-          # Fail pipeline if critical files failed
-          if failed_files:
-              exit(1)
-          PY_SCRIPT
-
-      - name: Upload HUD Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: capsulecraft-diagnostic-hud-reports
-          path: hud_artifacts/
+          python3 spatial_bridge_parser.py
+          python3 spatial_visualizer.py
+          git config --global user.name "SUPRANODE00"
+          git config --global user.email "supranode00@users.noreply.github.com"
+          git add lunar-telemetry-engine/config/active_bridge_mesh.json
+          git commit -m "Automated telemetry radius sweep and negative node binding update [skip ci]" || echo "No changes to commit"
+          git push || echo "No remote configured"

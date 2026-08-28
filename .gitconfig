@@ -1,3 +1,11 @@
 [user]
-	email = suprastar@netzero.net
+	email = your-github-email@example.com
 	name = SUPRANODE00
+[credential]
+	helper = cache
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential

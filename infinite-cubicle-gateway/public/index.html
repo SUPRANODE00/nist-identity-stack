@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SL1TH3R 𖤐 RAINBOW - Global Mesh Telemetry</title>
+    <style>
+        body { background: #050505; color: #ff0055; font-family: monospace; margin: 0; overflow: hidden; }
+        #viewport { width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .telemetry-card { border: 1px solid #ff0055; padding: 20px; background: rgba(10, 0, 5, 0.8); box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); }
+    </style>
+</head>
+<body>
+    <div id="viewport">
+        <div class="telemetry-card">
+            <h2>[GRID STATUS] Live Global Coordinates</h2>
+            <p>Target Node: <span id="node-id">SUPRANODE00</span></p>
+            <p>Latitude: <span id="lat">29.6044</span>° N</p>
+            <p>Longitude: <span id="lon">-95.2750</span>° W</p>
+            <p>State: <span id="status">SYNCED & LOCKED</span></p>
+        </div>
+    </div>
+    <script>
+        setInterval(() => {
+            document.getElementById('lat').innerText = (29.6044 + (Math.random() - 0.5) * 0.001).toFixed(4);
+            document.getElementById('lon').innerText = (-95.2750 + (Math.random() - 0.5) * 0.001).toFixed(4);
+        }, 3000);
+    </script>
+</body>
+</html>

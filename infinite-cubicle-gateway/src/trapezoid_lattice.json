@@ -1,0 +1,11 @@
+{
+  "lattice_geometry": "TRAPEZOIDAL_AXIS",
+  "vertices": [
+    {"x": -1.618, "y": 1.0, "z": 0.0},
+    {"x": 1.618, "y": 1.0, "z": 0.0},
+    {"x": 2.618, "y": -1.0, "z": 0.0},
+    {"x": -2.618, "y": -1.0, "z": 0.0}
+  ],
+  "resonance_mode": "SYNCHRONIZED",
+  "operator": "Demien"
+}

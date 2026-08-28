@@ -1,0 +1,36 @@
+name: Firecrawl CI/CD Integration
+
+on:
+  workflow_dispatch:   # manual trigger
+  schedule:
+    - cron: "0 3 * * *"   # run nightly at 3 AM UTC
+
+jobs:
+  firecrawl-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firecrawl CLI
+        run: npm install -g firecrawl-cli@latest
+
+      - name: Run Firecrawl scrape and search
+        env:
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          firecrawl scrape https://stripe.com/pricing --output scraped_stripe.json 
+          firecrawl search "latest stories in AI" --output ai_news.json
+
+      - name: Commit Firecrawl results
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add scraped_stripe.json ai_news.json
+          git commit -m "chore(ci): update Firecrawl scrape/search results"
+          git push origin main

@@ -1,0 +1,13 @@
+
+# Workspace Environment & History Artifacts
+/.Xauthority
+/.bash_history
+/.gitconfig
+/.local/
+/.python_history
+/telemetry_log.json
+/telemetry_sync.json
+/matrix_state.lock
+/matrix_runtime_config.conf
+/master_axis_session_*.tar.gz
+/nano.*

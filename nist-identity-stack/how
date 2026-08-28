@@ -1,0 +1,26 @@
+[4m [0m[4m [0m[4mUNIT                      [0m[4m [0m[4mLOAD  [0m[4m [0m[4mACTIVE[0m[4m [0m[4mSUB    [0m[4m [0m[4mDESCRIPTION                                             [0m
+  axis-bridge.service        loaded active running AXIS State-Inventory Telemetry Bridge
+  capsule-node.service       loaded active running Capsule Node Telemetry Daemon
+  cron.service               loaded active running Regular background program processing daemon
+  cros-port-listener.service loaded active running Chromium OS port listener service
+  dbus.service               loaded active running D-Bus System Message Bus
+  getty@tty1.service         loaded active running Getty on tty1
+  maitred.service            loaded active running maitred
+  mosquitto.service          loaded active running Mosquitto MQTT Broker
+  nginx.service              loaded active running A high performance web server and a reverse proxy server
+  polkit.service             loaded active running Authorization Manager
+  postgresql@17-main.service loaded active running PostgreSQL Cluster 17-main
+  serial-getty@hvc0.service  loaded active running Serial Getty on hvc0
+  ssh.service                loaded active running OpenBSD Secure Shell server
+  systemd-journald.service   loaded active running Journal Service
+  systemd-logind.service     loaded active running User Login Management
+  systemd-timesyncd.service  loaded active running Network Time Synchronization
+  systemd-udevd.service      loaded active running Rule-based Manager for Device Events and Files
+  user@1000.service          loaded active running User Manager for UID 1000
+  vshd.service               loaded active running vshd
+
+[0;38:5:245mLegend: LOAD   → Reflects whether the unit definition was properly loaded.[0m
+[0;38:5:245m        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.[0m
+[0;38:5:245m        SUB    → The low-level unit activation state, values depend on unit type.[0m
+
+19 loaded units listed.

@@ -9,21 +9,19 @@
 # is strictly prohibited under statutory copyright and federal IP protections.
 # ============================================================================
 
+import sys
 import json
 import datetime
 
-def main():
-    agents = ["Hexadecimal-Agent-01", "Fraction-Agent-02", "Side-Agent-03"]
-    mesh_sync = []
-    for a in agents:
-        frame = {
-            "timestamp": datetime.datetime.now().isoformat(),
-            "agent": a,
-            "status": "synchronized",
-            "payload": "State-Inventory telemetry grid active."
-        }
-        mesh_sync.append(frame)
-    print(json.dumps(mesh_sync, indent=2))
+def dispatch_agent_frame(agent_id, payload):
+    timestamp = datetime.datetime.now().isoformat()
+    frame = {
+        "timestamp": timestamp,
+        "agent": agent_id,
+        "status": "active",
+        "payload": payload
+    }
+    print(json.dumps(frame, indent=2))
 
 if __name__ == "__main__":
-    main()
+    dispatch_agent_frame("Hexadecimal-Agent-01", "Synchronizing State-Inventory telemetry grid.")

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: parallelstore-telemetry-config
+  namespace: default
+data:
+  network: "my-custom-vpc"
+  capacity_gib: "12000"
+  region: "us-central1"
+  project: "project-d3f5942c-9611-4a9f-94b"

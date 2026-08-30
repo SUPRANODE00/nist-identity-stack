@@ -1,0 +1,63 @@
+{
+  "input": {
+    "lat": 29.7604,
+    "lon": -95.3698,
+    "censusYear": "2020"
+  },
+  "results": [
+    {
+      "block_fips": "482019807001080",
+      "bbox": [
+        -95.370076,
+        29.759057,
+        -95.367789,
+        29.760804
+      ],
+      "county_fips": "48201",
+      "county_name": "Harris County",
+      "state_fips": "48",
+      "state_code": "TX",
+      "state_name": "Texas",
+      "block_pop_2020": 5,
+      "amt": "AMT004",
+      "bea": "BEA131",
+      "bta": "BTA196",
+      "cma": "CMA010",
+      "eag": "EAG005",
+      "ivm": "IVM010",
+      "mea": "MEA031",
+      "mta": "MTA014",
+      "pea": "PEA010",
+      "rea": "REA005",
+      "rpc": "RPC004",
+      "vpc": "VPC004"
+    },
+    {
+      "block_fips": "482019807001081",
+      "bbox": [
+        -95.373655,
+        29.759317,
+        -95.369501,
+        29.761516
+      ],
+      "county_fips": "48201",
+      "county_name": "Harris County",
+      "state_fips": "48",
+      "state_code": "TX",
+      "state_name": "Texas",
+      "block_pop_2020": 0,
+      "amt": "AMT004",
+      "bea": "BEA131",
+      "bta": "BTA196",
+      "cma": "CMA010",
+      "eag": "EAG005",
+      "ivm": "IVM010",
+      "mea": "MEA031",
+      "mta": "MTA014",
+      "pea": "PEA010",
+      "rea": "REA005",
+      "rpc": "RPC004",
+      "vpc": "VPC004"
+    }
+  ]
+}

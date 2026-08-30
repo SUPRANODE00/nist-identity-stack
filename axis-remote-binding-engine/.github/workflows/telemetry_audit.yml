@@ -1,0 +1,24 @@
+name: AXIS-TCET Telemetry Audit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Execute Telemetry Verification Loop
+        run: |
+          cd telemetry_mesh
+          chmod +x run_verification.sh
+          ./run_verification.sh

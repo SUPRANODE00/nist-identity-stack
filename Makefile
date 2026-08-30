@@ -1,9 +1,12 @@
-.PHONY: sync push status
+run:
+	mkdir -p output
+	cat data/sample_eeg.csv | sed 's/NaN/0/g' > output/normalized.csv
+	cat output/normalized.csv | awk -F, 'NR>1 && $$3>40 {print $$1","$$3}' > output/filtered.csv
+	cat output/normalized.csv | awk -F, 'NR>1 {print $$1","$$4","$$3}' > output/inverted.csv
 
-sync:
-	git add run_capsule_node.py capsule_identity.toml .gitignore Makefile .github/workflows/iks-deploy.yml
-	@git commit -m "auto(sync): update telemetry daemon state and automation at $(shell date -u +'%Y-%m-%d %H:%M:%S UTC')" || echo "No changes to commit"
-	git push origin feat/stateless-control-plane
+test: run
+	diff output/filtered.csv tests/expected_filtered.csv
+	diff output/inverted.csv tests/expected_inverted.csv
 
-status:
-	curl -s http://127.0.0.1:8080/status | jq .
+clean:
+	rm -rf output/*

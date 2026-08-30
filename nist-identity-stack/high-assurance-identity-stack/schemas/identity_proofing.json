@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HighAssuranceIdentityProofing",
+  "type": "object",
+  "properties": {
+    "legal_name": {
+      "type": "string"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "format": "date"
+    },
+    "vital_record_hash": {
+      "type": "string"
+    },
+    "biometric_liveness_verified": {
+      "type": "boolean",
+      "enum": [
+        true
+      ]
+    },
+    "hardware_token_bound": {
+      "type": "boolean",
+      "enum": [
+        true
+      ]
+    }
+  },
+  "required": [
+    "legal_name",
+    "date_of_birth",
+    "vital_record_hash",
+    "biometric_liveness_verified",
+    "hardware_token_bound"
+  ]
+}

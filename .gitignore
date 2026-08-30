@@ -31,3 +31,7 @@ telemetry_events.db
 __pycache__/
 .npm/
 .git-credentials
+telemetry_log.json
+telemetry_log.json
+telemetry_log.json
+telemetry_log.json

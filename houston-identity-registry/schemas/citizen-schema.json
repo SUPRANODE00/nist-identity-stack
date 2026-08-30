@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CitizenIdentityRecord",
+  "type": "object",
+  "properties": {
+    "full_name": { "type": "string", "minLength": 2 },
+    "jurisdiction": { "type": "string", "const": "Houston, TX" },
+    "record_identifier": { "type": "string" },
+    "crypto_hash": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+  },
+  "required": ["full_name", "jurisdiction", "record_identifier", "crypto_hash"]
+}

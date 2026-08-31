@@ -1,0 +1,8 @@
+FROM node:18-bullseye
+WORKDIR /usr/src/app
+COPY server.js package*.json ./ || true
+RUN if [ -f package.json ]; then npm install --production --silent || true; fi
+ENV NODE_ENV=production
+ENV MQTT_URL=mqtt://mqtt:1883
+EXPOSE 3000
+CMD ["node", "server.js"]

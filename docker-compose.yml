@@ -1,0 +1,42 @@
+version: "3.8"
+services:
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: parallel_mqtt
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+  node_ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: parallel_node_ui
+    volumes:
+      - ./:/usr/src/app:delegated
+    environment:
+      - MQTT_URL=mqtt://mqtt:1883
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASS=${MQTT_PASS:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mqtt
+  python_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: parallel_python_worker
+    volumes:
+      - ./:/app:delegated
+    environment:
+      - MQTT_URL=mqtt://mqtt:1883
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASS=${MQTT_PASS:-}
+      - WORKER_SCRIPT=${WORKER_SCRIPT:-zenith_ingest.py}
+    depends_on:
+      - mqtt
+volumes:
+  mosquitto_data:
+  mosquitto_log:

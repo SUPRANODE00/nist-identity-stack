@@ -1,0 +1,48 @@
+name: Run Telemetry Stack
+on:
+  workflow_dispatch:
+jobs:
+  build_and_run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Node image
+        run: docker build -t parallel_node_ui:ci -f Dockerfile.node . || true
+      - name: Build Python worker image
+        run: docker build -t parallel_python_worker:ci -f Dockerfile.python . || true
+      - name: Start MQTT broker
+        run: docker run -d --rm --name parallel_mqtt -p 1883:1883 eclipse-mosquitto:2.0
+      - name: Start Node UI
+        env:
+          MQTT_USER: ${{ secrets.MQTT_USER }}
+          MQTT_PASS: ${{ secrets.MQTT_PASS }}
+        run: docker run -d --rm --name parallel_node_ui --link parallel_mqtt:mq -p 3000:3000 -e MQTT_URL=mqtt://mqtt:1883 -e MQTT_USER="${MQTT_USER}" -e MQTT_PASS="${MQTT_PASS}" parallel_node_ui:ci
+      - name: Start Python worker
+        env:
+          WORKER_SCRIPT: zenith_ingest.py
+          MQTT_USER: ${{ secrets.MQTT_USER }}
+          MQTT_PASS: ${{ secrets.MQTT_PASS }}
+        run: docker run -d --rm --name parallel_python_worker --link parallel_mqtt:mq -e WORKER_SCRIPT="${WORKER_SCRIPT}" -e MQTT_URL=mqtt://mqtt:1883 -e MQTT_USER="${MQTT_USER}" -e MQTT_PASS="${MQTT_PASS}" parallel_python_worker:ci || true
+      - name: Health Check Node UI
+        run: |
+          echo "[+] Probing Telemetry Node Interface..."
+          for i in {1..20}; do
+            if curl -sSf http://localhost:3000/ >/dev/null 2>&1; then
+              echo "[+] Telemetry endpoint online."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "[-] Node UI failed response challenge." && docker logs parallel_node_ui || true
+          exit 1
+      - name: Stream Telemetry Logs
+        run: |
+          docker ps --format "{{.Names}}\t{{.Status}}"
+          docker logs --tail 100 parallel_python_worker || true
+          docker logs --tail 100 parallel_node_ui || true
+      - name: Teardown
+        if: ${{ always() }}
+        run: docker rm -f parallel_python_worker parallel_node_ui parallel_mqtt || true
